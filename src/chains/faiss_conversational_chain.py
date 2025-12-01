@@ -18,6 +18,7 @@ from src.prompts.templates import PromptTemplate
 from src.chat_model import get_chat_model
 from src.loaders.document_loader import get_document_loader
 from src.vectorstores.faiss_store import get_faiss_vector_store
+from src.vectorstores.hybrid_retriever import create_hybrid_retriever
 from src.utils.logging_config import get_logger
 
 # Initialize logger
@@ -77,7 +78,8 @@ class FAISSConversationalRAGChain:
         
         # Get FAISS vector store
         self.faiss_store = get_faiss_vector_store()
-        self.retriever = self.faiss_store.get_retriever()
+        
+        self.retriever = create_hybrid_retriever(self.faiss_store.vector_store)
         
         # Memory - use simple list to store conversation history
         self.history = []
@@ -143,8 +145,8 @@ class FAISSConversationalRAGChain:
         # Use FAISS vector store service to add documents
         self.faiss_store.add_documents(chunks)
         
-        # Update retriever
-        self.retriever = self.faiss_store.get_retriever()
+        # # Update retriever
+        # self.retriever = self.faiss_store.get_retriever()
     
     def  delete_documents(self, doc_id: str):
         """
