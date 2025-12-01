@@ -71,18 +71,6 @@ class FAISSVectorStore:
         vector_store.save_local(str(FAISS_INDEX_PATH))
         return vector_store
     
-    def get_retriever(self, k: int = None):
-        """
-        Get retriever
-        
-        Args:
-            k: Number of documents to retrieve, defaults to value in configuration
-            
-        Returns:
-            Retriever instance
-        """
-        search_kwargs = {"k": k or Config.TOP_K}
-        return self.vector_store.as_retriever(search_type="mmr",search_kwargs=search_kwargs)
     
     def add_documents(self, documents: List[Document], batch_size: int = 10, ids: Optional[List[str]] = None) -> bool:
         """
@@ -178,30 +166,6 @@ class FAISSVectorStore:
         self.vector_store.save_local(save_path)
         logger.info(f"✅ Vector store saved to: {save_path}")
     
-    # def load_documents_and_update(self, document_paths: List[str]) -> bool:
-    #     """
-    #     加载文档并更新向量库
-        
-    #     Args:
-    #         document_paths: 文档路径列表
-            
-    #     Returns:
-    #         是否成功更新
-    #     """
-    #     print(f"\n📚 开始更新知识库（新文档数：{len(document_paths)}）")
-        
-    #     # 使用文档加载器服务加载文档
-    #     loader = get_document_loader()
-    #     all_docs = loader.process_documents(document_paths, skip_processed=True)
-        
-    #     if not all_docs:
-    #         print("⚠️ 无新增文档，知识库未更新")
-    #         return False
-        
-    #     print(f"✅ 成功加载 {len(all_docs)} 个新文档")
-        
-    #     # 添加文档到向量库
-    #     return self.add_documents(all_docs)
     
     from langchain_community.vectorstores import FAISS
 
@@ -211,6 +175,7 @@ class FAISSVectorStore:
     def clear(self) -> None:
         # 1) Clear underlying faiss index (memory)
         import faiss
+    
         from langchain_community.docstore.in_memory import InMemoryDocstore
         index: faiss.Index = self.vector_store.index
         index.reset()  # Clear all vectors (ntotal will become 0)
@@ -293,14 +258,7 @@ class FAISSVectorStore:
             logger.error(f"⚠️ Failed to delete documents: {e}")
             return False
     
-    # def clear(self) -> None:
-    #     """清空向量库"""
-    #     # 创建一个新的空向量库
-    #     self.vector_store = FAISS.from_texts(
-    #         ["初始化文档"], self.embeddings
-    #     )
-    #     self.save()
-    #     print("✅ 向量库已清空")
+
 
 
 # Global singleton
