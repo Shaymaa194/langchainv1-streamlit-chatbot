@@ -9,13 +9,20 @@ The hybrid approach improves retrieval quality by capturing both semantic relati
 and keyword matches, especially useful for queries that might be missed by embeddings alone.
 """
 from typing import List, Optional, Dict, Any, Union, Callable
+import uuid
 from pathlib import Path
 
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
+# from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
+# from langchain_core.embeddings import Embeddings
 from langchain_core.runnables import RunnableParallel, RunnableLambda
+from langchain_cohere import CohereRerank
+from langchain_classic.retrievers.contextual_compression import (
+    ContextualCompressionRetriever,
+)
 
 from src.config import Config
 # from src.embedding import get_embeddings_singleton
@@ -138,6 +145,10 @@ def create_hybrid_retriever(vector_store: FAISS, k: int = None) -> BaseRetriever
         RunnableParallel(vector=vector_retriever, bm25=bm25_retriever)
         | RunnableLambda(combine_results)
     )
+    compressor = CohereRerank(model="rerank-v3.5",cohere_api_key=Config.COHERE_API_KEY)
+    compression_retriever = ContextualCompressionRetriever(
+        base_compressor=compressor, base_retriever=hybrid_retriever
+    )
     
     logger.info(f"✅ Created hybrid retriever with {len(all_docs)} documents")
-    return hybrid_retriever
+    return compression_retriever
