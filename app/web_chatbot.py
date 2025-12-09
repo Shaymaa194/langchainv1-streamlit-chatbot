@@ -200,30 +200,49 @@ def clear_knowledge_base():
         st.error(f"Clearing failed: {str(e)}")
 
 def init_session_state():
-    """Initialize all session state variables"""
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = "user_123"
-
     if "session_id" not in st.session_state:
         st.session_state.session_id = generate_session_id()
-
     if "messages" not in st.session_state:
         st.session_state.messages = []
-
     if "chatbot" not in st.session_state:
-        try:
-            st.session_state.chatbot = get_conversational_chain(st.session_state.session_id)
-        except Exception as e:
-            st.error(f"Failed to initialize chatbot: {e}")
-            import traceback
-            st.error(traceback.format_exc())
+        # 这里只创建实例，不进行 connect DB 或 fetch tools
+        st.session_state.chatbot = get_conversational_chain(st.session_state.session_id)
+# def init_session_state():
+#     """Initialize all session state variables"""
+#     if "thread_id" not in st.session_state:
+#         st.session_state.thread_id = "user_123"
+
+#     if "session_id" not in st.session_state:
+#         st.session_state.session_id = generate_session_id()
+
+#     if "messages" not in st.session_state:
+#         st.session_state.messages = []
+
+#     if "chatbot" not in st.session_state:
+#         try:
+#             st.session_state.chatbot = get_conversational_chain(st.session_state.session_id)
+#         except Exception as e:
+#             st.error(f"Failed to initialize chatbot: {e}")
+#             import traceback
+#             st.error(traceback.format_exc())
 
 # Call the initialization function
-init_session_state()
+# init_session_state()
 
-def main():
+async def main():
     """Main function"""
     init_session_state()
+    # 2. 异步初始化 Chatbot (关键步骤)
+    # 这会确保 DB 连接和 Tool 获取是在当前的 Event Loop 中完成的
+    if "chatbot" in st.session_state:
+        try:
+            await st.session_state.chatbot.ainitialize()
+        except Exception as e:
+            st.error(f"Failed to initialize AI Agent: {e}")
+            return
+        
     from src.loaders.document_loader import get_document_loader
     document_loader = get_document_loader()
     
@@ -380,9 +399,9 @@ def main():
                 
                 # Stream generation
                 print(f"prompt: {prompt}")
-                stream_config = {"configurable": {"thread_id": st.session_state.thread_id}}
+                stream_config = {"configurable": {"thread_id": st.session_state.thread_id},"recursion_limit": 100}
                 
-                for chunk in st.session_state.chatbot.agent.stream(
+                async for chunk in st.session_state.chatbot.agent.astream(
                     {"messages": [{"role": "user", "content": prompt}]},
                     config=stream_config,
                     stream_mode="updates"
@@ -468,4 +487,16 @@ def main():
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    # asyncio.run(main())
+# 针对 Streamlit 的异步运行处理
+    try:
+        # 获取当前正在运行的 loop (Streamlit 较新版本通常已有 loop)
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # 如果没有 loop，创建一个新的
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    # 在 loop 中运行 main
+    loop.run_until_complete(main())
